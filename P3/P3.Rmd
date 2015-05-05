@@ -1,0 +1,259 @@
+---
+title: "P3"
+author: "Vincent Chiu"
+date: "May 3, 2015"
+output:
+  html_document:
+    toc: yes
+---
+
+#House keeping
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+library(gridExtra)
+library(GGally)
+library(ggplot2)
+library(RColorBrewer)
+library(plyr)
+```
+
+Import red and white wine data
+```{r echo=FALSE, Load_the_Data}
+whiteWineDf <- read.csv('wineQualityWhites.csv')
+redWineDf <- read.csv('wineQualityReds.csv')
+whiteWineDf$type <- 'white'
+redWineDf$type <- 'red'
+wineDf<-rbind(whiteWineDf,redWineDf)
+```
+
+#Single variable analysis
+##Exploration
+First I want to see the distribution of the data. Not sure if there is an easier
+way to do this than copy/paste the same things many time. but here is what I did
+to plot the histogram for the variables
+
+```{r echo=FALSE, Univariate_Plots1, fig.align='center'}
+p1<-qplot(x=fixed.acidity,data=whiteWineDf)
+p2<-qplot(x=volatile.acidity,data=whiteWineDf)
+p3<-qplot(x=citric.acid,data=whiteWineDf)
+p4<-qplot(x=log(residual.sugar),data=whiteWineDf)
+p5<-qplot(x=log(chlorides),data=whiteWineDf)
+p6<-qplot(x=free.sulfur.dioxide,data=whiteWineDf)
+p7<-qplot(x=total.sulfur.dioxide,data=whiteWineDf)
+p8<-qplot(x=density,data=whiteWineDf)
+p9<-qplot(x=pH,data=whiteWineDf)
+p10<-qplot(x=log(sulphates),data=whiteWineDf)
+p11<-qplot(x=log(alcohol),data=whiteWineDf)
+p<-grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11)
+```
+Looks like a few variable may have long tail, so i log transformed them
+
+Residual sugar is interesting, look like it should be sweet or not sweet. 
+Curious what redwine looks like
+```{r echo=FALSE, Univariate_Plots2, fig.align='center'}
+p12<-qplot(x=log(residual.sugar),data=redWineDf)
+grid.arrange(p12,p4)
+```
+Look like only white wine should be sweet
+
+Alcohol is also interesting, looks like there is a skew toward lower alcohol. 
+```{r echo=FALSE, Univariate_Plots3, fig.align='center'}
+ggplot(aes(x=log(alcohol)),data=whiteWineDf)+geom_density()
+```
+
+Look at quality distribution
+```{r echo=FALSE, Univariate_Plots4, fig.align='center'}
+ggplot(aes(x=quality),data=whiteWineDf)+geom_histogram()
+table(whiteWineDf$quality)
+```
+Looks like most wine in the data are between 5, 6 and 7. Table confirmed this. 
+
+The paper in the footnote suggested alchol and sulphate are very important for white wine. 
+Look at their distribution
+```{r echo=FALSE, Univariate_Plots5, fig.align='center'}
+whiteWineDf.subset <- subset(whiteWineDf,quality %in% c(5,6,7))
+p1<-ggplot(aes(log(alcohol)),data=whiteWineDf.subset)+geom_histogram()
+p2<-ggplot(aes(log(sulphates)),data=whiteWineDf.subset)+geom_histogram()
+p3<-ggplot(aes(log(residual.sugar)),data=whiteWineDf.subset)+geom_histogram()
+p4<-ggplot(aes(log(citric.acid)),data=whiteWineDf.subset)+geom_histogram()
+grid.arrange(p1,p2,p3,p4)
+```
+##Observation
+###Data Structure
+White wine data set has 4898 observation with 12 variables. The main feature is quality. 
+All the variables except for quality is continuous variables. 
+
+###Pattern
+Sugar level has interesting bimodal pattern. I was not able to find the similar pattern
+in the red wine dataset.
+
+Alcohol level seems to skew toward lower alcohol, suggest that's more common
+
+#Bivariate variable analysis
+
+##Exploration
+The main feature I want to understand is quality and how other variables affect quality. 
+First I do a ggpairs to get an idea on if there is any obvious trend
+```{r echo=FALSE, Bivariate_Plots1, fig.align='center'}
+ggpairs(whiteWineDf[2:14])
+```
+Doesn't look like there is a trend. I look at the bottom row, quality vs other variables. 
+I did not see any clear pattern, looks like nothing correlate. Then I look at the 
+last column. 
+I think this is the correlation between quality and other variables, and from 
+the number it look like alcohol content has the strongest correlation
+
+plot the top four varibles for each quality
+```{r echo=FALSE, Bivariate_Plots2, fig.align='center'}
+p1<-ggplot(aes(as.factor(quality),log(alcohol)),data=whiteWineDf.subset)+
+  geom_boxplot()
+p2<-ggplot(aes(as.factor(quality),log(sulphates)),data=whiteWineDf.subset)+
+  geom_boxplot()
+p3<-ggplot(aes(as.factor(quality),log(residual.sugar)),data=whiteWineDf.subset)+
+  geom_boxplot()
+p4<-ggplot(aes(as.factor(quality),(citric.acid)),data=whiteWineDf.subset)+
+  geom_boxplot()+ylim(c(0,quantile(whiteWineDf.subset$citric.acid,.99)))
+grid.arrange(p1,p2,p3,p4)
+```
+Looks like alcohol goes up with quality, residual and citric acid variance gets smaller
+with quality. 
+However, I'm surprise that there is no clear pattern for sulphate, which was the dominant
+variable according to the paper. 
+
+I feel like quality should be a combination of multiple factor, for example, high sugar
+need to have high citric acid etc. So i change the plot to color by quality
+```{r echo=FALSE, Multivariate_Plots1, fig.align='center'}
+ggplot(aes(color=quality,y=log(sulphates),x=log(alcohol)),data=whiteWineDf.subset)+
+  geom_point(alpha=1/5)
+ggplot(aes(color=citric.acid,y=log(sulphates),x=log(alcohol)),data=whiteWineDf.subset)+
+  geom_point(alpha=1/5)+facet_wrap(~quality,ncol=1)
+ggplot(aes(y=citric.acid,color=log(sulphates),x=log(alcohol)),data=whiteWineDf.subset)+
+  geom_point(alpha=1/5)+facet_wrap(~quality,ncol=1)
+```
+Looks like we see an increase in alocohol and a lower of sulphates as quality increase 
+form 5 to 7. As quality increase, the citrici acid level decrease. 
+
+Is there a relationship between these variable? I will look at just one quality and see
+```{r echo=FALSE, Bivariate_Plots3, fig.align='center'}
+#ggpairs(subset(whiteWineDf,quality=7)[c(2:12)])
+```
+There is some obvious pattern, free sulphates vs total sulphate and some not so obvious 
+pattern such as density vs alcohol
+
+Create a factor for the sweetness to separate the two type of wine for more detail analysis
+```{r echo=FALSE, Multivariate_Plots2, fig.align='center'}
+whiteWineDf$sweet <- NA
+whiteWineDf[which(log(whiteWineDf$residual.sugar) <1.64),]$sweet = 'not sweet'
+whiteWineDf[which(log(whiteWineDf$residual.sugar) >=1.64),]$sweet = 'sweet'
+whiteWineDf.subset<-subset(whiteWineDf,quality=7)
+#ggpairs(subset(whiteWineDf,quality=7,sweet=sweet)[c(2:12)])
+#ggpairs(subset(whiteWineDf,quality=7,sweet=='not sweet')[c(2:12)])
+ggplot(aes(y=log(alcohol),x=citric.acid,color=sulphates),data=whiteWineDf.subset)+
+  geom_point(alpha=1/5)+facet_wrap(~sweet)
+ggplot(aes(y=log(sulphates),x=citric.acid,color=alcohol),data=whiteWineDf.subset)+
+  geom_point(alpha=1/5)+facet_wrap(~sweet)
+```
+There doesn't seem to be very obvious pattern. Some conjecture
+* Sweet wine tend to be less alcoholic.
+* Sweet wine tend to have a tighter sulphate range
+* Sweet wine tend to be have more citric acid
+
+Also want to see how sweet factor influence quality
+```{r echo=FALSE, Multivariate_Plots3, fig.align='center'}
+summary(log(whiteWineDf$residual.sugar))
+qplot(data=whiteWineDf,x=quality)+facet_wrap(~sweet)
+ddply(whiteWineDf,~sweet,summarize,m=mean(quality))
+```
+The pattern is similar but seems like sweet wine may have just bit lower rating on average. 
+
+How about citric acid, this was mention in the paper.
+```{r echo=FALSE, Multivariate_Plots4, fig.align='center'}
+qplot(data=whiteWineDf,x=log(citric.acid))+facet_wrap(~sweet,ncol=1)
+ddply(subset(whiteWineDf,quality=7),~sweet,summarize,citric=mean(citric.acid),sulphates=mean(sulphates),alcohol=mean(alcohol),quality=mean(quality))
+```
+I didn't see a big difference in pattern in citric acid either. But running summary, looks like
+there may be slightly higher citric acid and lower alcohol when wine is sweet. 
+whiteWineDf.subset
+
+T test to see if difference is significant
+```{r, T_test, fig.align='center'}
+t.test(whiteWineDf$citric.acid~whiteWineDf$sweet)
+t.test(whiteWineDf$alcohol~whiteWineDf$sweet)
+t.test(whiteWineDf$sulphates~whiteWineDf$sweet)
+t.test(whiteWineDf$residual.sugar~whiteWineDf$sweet)
+```
+Looks like the difference between sweet and not sweet wine are quite large. 
+
+##Observation
+#Relationship
+According to the paper, sulphate is the dominant factor in determine the quality of the wine. 
+However, in my exploration, I found alcohol level, residual sugar variance and citric variance
+have more correlation with quality. I think this maybe because I'm look at single variable and
+didn't use more sophisticate technique like in the paper. 
+
+I was able to plot the top 3 variables by setting two variables as x and y and one variables as 
+color. This was then facet wrap with quality to identify pattern. Looks like we see an increase 
+in alocohol and a lower of sulphates as quality increase form 5 to 7
+As quality increase, the citrici acid level decrease. 
+
+Also interesting is the difference in alcohol, citric acid, sulphate and residual sugar between
+sweet and non sweet wine. 
+
+#Final Plots and Summary
+
+```{r echo=FALSE, Plot_One, fig.align='center'}
+ggplot(aes(x=quality,fill=sweet),data=whiteWineDf)+geom_histogram()+
+  scale_x_discrete("quality",limits=c(3,9))+ggtitle('Quality Distribution')
+length(subset(whiteWineDf,quality %in% c(5,6,7))$alcohol)/length(whiteWineDf$alcohol)
+length(subset(whiteWineDf,quality %in% c(6))$alcohol)/length(whiteWineDf$alcohol)
+unique(whiteWineDf$quality)
+```
+92% of the white wine in the sample are between 5, 6 and 7. 45% of the wine are at quality 6. 
+We only observe wine between 3-9. The distribution is similar for sweet wine and not sweet wine
+
+
+```{r echo=FALSE, Plot_Two, fig.align='center'}
+p1<-ggplot(aes(alcohol,fill=sweet),data=whiteWineDf.subset)+geom_histogram()+ggtitle('Alcohol Level Distribution')
+p2<-ggplot(aes(sulphates,fill=sweet),data=whiteWineDf.subset)+geom_histogram(position='dodge')+ggtitle('Sulphates Level Distribution')
+p3<-ggplot(aes(quality,fill=sweet),data=whiteWineDf.subset)+geom_bar(position='dodge')+
+  scale_x_discrete(limits=c(5,7))+ggtitle('Quality Level Distribution')
+p4<-ggplot(aes(citric.acid,fill=sweet),data=whiteWineDf.subset)+geom_histogram()+ggtitle('Citric Level Distribution')
+grid.arrange(p1,p2,p3,p4)
+```
+The sweetness of the white wine are bimodal. There is a difference in distribution in 
+citric acid, residual sugar and alcohol between sweet wine and not sweet wine. 
+T test show that the difference is significant. 
+
+```{r echo=FALSE, Plot_Three, fig.align='center'}
+p1<-ggplot(aes(as.factor(quality),alcohol,fill=sweet),data=whiteWineDf.subset)+geom_boxplot()+scale_y_log10()+xlab("Quality")+ggtitle('Alcohol Level vs quality')
+p2<-ggplot(aes(as.factor(quality),sulphates,fill=sweet),data=whiteWineDf.subset)+geom_boxplot()+scale_y_log10()+xlab("Quality")+ggtitle('Sulphates Level vs quality')
+p3<-ggplot(aes(as.factor(quality),residual.sugar,fill=sweet),data=whiteWineDf.subset)+geom_boxplot()+scale_y_log10()+xlab("Quality")+ggtitle('Residual Sugar vs quality')
+p4<-ggplot(aes(as.factor(quality),citric.acid,fill=sweet),data=whiteWineDf.subset)+geom_boxplot()+xlab("Quality")+scale_y_log10()+ylim(quantile(whiteWineDf.subset$citric.acid,.01),quantile(whiteWineDf.subset$citric.acid,.99))+ggtitle('Citric Acid Level vs quality')
+grid.arrange(p1,p2,p3,p4,ncol=2)
+```
+Finally, there seems to be a clear correlation between alcohol, residual sugar and quality. There should be a correlation between sulphates and citric acid to quality but its not very clear in the graph. 
+Citric acid variance tend to get smaller as quality increase. However, its hard to tell.
+Same for sulphates. 
+
+
+#Reflection
+The white wine data set contain 4898 samples. However most of the wine are in the 5, 6 and 7 quality range.
+So I decided it was better to limit the analysis to that set because there is may not be enough sample for
+the other quality. Not sure if it was reasonable to drop part of the data, this may have cause me to miss
+important rend. 
+
+I initially just jumped in and tried to determine the regression model. It was very difficult, so I went 
+back and follow the process of single variable, then multivariable. Even then, it was still very difficult
+to determine what factor influence the quality of the wine. I also struggled with figuring out which
+variables should be log transformed.
+
+There is a lot of variables that interact us each other to determine the quality of the wine. This make it
+difficult to determine the quality of the wine with simple linear regression. I was also suprised to not
+see any obvious relationship between quality and sulphates, which was listed as the most important factor
+in the paper
+
+I think breaking down white wine by two sugar category was a good move. It help remove some of the noise.
+The variables for quality white wine can be very different depend on the sugar level. T test also confirmed
+this. 
+
+If I had more time, I think I would like to apply some of the technique the paper discuss to try to 
+understand quality model better.
