@@ -1,0 +1,5 @@
+I used the article in the data source foot note
+http://www.sciencedirect.com/science/article/pii/S0167923609001377
+
+I also use the R studio cheat sheet
+http://www.rstudio.com/resources/cheatsheets/
